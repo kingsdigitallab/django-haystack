@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import json
 import os
 import re
 import shutil
@@ -12,6 +13,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
 from django.utils.datetime_safe import datetime
+from django.utils.encoding import force_text
 
 from haystack.backends import BaseEngine, BaseSearchBackend, BaseSearchQuery, EmptyResults, log_query
 from haystack.constants import DJANGO_CT, DJANGO_ID, ID
@@ -21,19 +23,6 @@ from haystack.models import SearchResult
 from haystack.utils import log as logging
 from haystack.utils import get_identifier, get_model_ct
 from haystack.utils.app_loading import haystack_get_model
-
-try:
-    import json
-except ImportError:
-    try:
-        import simplejson as json
-    except ImportError:
-        from django.utils import simplejson as json
-
-try:
-    from django.utils.encoding import force_text
-except ImportError:
-    from django.utils.encoding import force_unicode as force_text
 
 try:
     import whoosh
@@ -122,7 +111,7 @@ class WhooshSearchBackend(BaseSearchBackend):
         else:
             global LOCALS
 
-            if LOCALS.RAM_STORE is None:
+            if getattr(LOCALS, 'RAM_STORE', None) is None:
                 LOCALS.RAM_STORE = RamStorage()
 
             self.storage = LOCALS.RAM_STORE
@@ -824,19 +813,22 @@ class WhooshSearchQuery(BaseSearchQuery):
             index_fieldname = u'%s:' % connections[self._using].get_unified_index().get_index_fieldname(field)
 
         filter_types = {
-            'contains': '%s',
+            'content': '%s',
+            'contains': '*%s*',
+            'endswith': "*%s",
             'startswith': "%s*",
             'exact': '%s',
             'gt': "{%s to}",
             'gte': "[%s to]",
             'lt': "{to %s}",
             'lte': "[to %s]",
+            'fuzzy': u'%s~',
         }
 
         if value.post_process is False:
             query_frag = prepared_value
         else:
-            if filter_type in ['contains', 'startswith']:
+            if filter_type in ['content', 'contains', 'startswith', 'endswith', 'fuzzy']:
                 if value.input_type_name == 'exact':
                     query_frag = prepared_value
                 else:

@@ -98,6 +98,21 @@ class WhooshSearchQueryTestCase(WhooshTestCase):
         self.sq.add_filter(SQ(title__startswith='haystack'))
         self.assertEqual(self.sq.build_query(), u'((why) AND title:(haystack*))')
 
+    def test_build_query_fuzzy_filter_types(self):
+        self.sq.add_filter(SQ(content='why'))
+        self.sq.add_filter(SQ(title__fuzzy='haystack'))
+        self.assertEqual(self.sq.build_query(), u'((why) AND title:(haystack~))')
+
+    def test_build_query_with_contains(self):
+        self.sq.add_filter(SQ(content='circular'))
+        self.sq.add_filter(SQ(title__contains='haystack'))
+        self.assertEqual(self.sq.build_query(), u'((circular) AND title:(*haystack*))')
+
+    def test_build_query_with_endswith(self):
+        self.sq.add_filter(SQ(content='circular'))
+        self.sq.add_filter(SQ(title__endswith='haystack'))
+        self.assertEqual(self.sq.build_query(), u'((circular) AND title:(*haystack))')
+
     def test_clean(self):
         self.assertEqual(self.sq.clean('hello world'), 'hello world')
         self.assertEqual(self.sq.clean('hello AND world'), 'hello and world')

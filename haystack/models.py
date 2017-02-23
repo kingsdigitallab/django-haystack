@@ -5,17 +5,13 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import models
 from django.utils import six
+from django.utils.encoding import force_text
 from django.utils.text import capfirst
 
 from haystack.exceptions import NotHandled, SpatialError
 from haystack.utils import log as logging
-
-try:
-    from django.utils.encoding import force_text
-except ImportError:
-    from django.utils.encoding import force_unicode as force_text
+from haystack.utils.app_loading import haystack_get_model
 
 try:
     from geopy import distance as geopy_distance
@@ -100,7 +96,7 @@ class SearchResult(object):
     def _get_model(self):
         if self._model is None:
             try:
-                self._model = models.get_model(self.app_label, self.model_name)
+                self._model = haystack_get_model(self.app_label, self.model_name)
             except LookupError:
                 # this changed in change 1.7 to throw an error instead of
                 # returning None when the model isn't found. So catch the
@@ -131,7 +127,7 @@ class SearchResult(object):
             if not hasattr(self, self._point_of_origin['field']):
                 raise SpatialError("The field '%s' was not included in search results, so the distance could not be calculated." % self._point_of_origin['field'])
 
-            po_lng, po_lat = self._point_of_origin['point'].get_coords()
+            po_lng, po_lat = self._point_of_origin['point'].coords
             location_field = getattr(self, self._point_of_origin['field'])
 
             if location_field is None:

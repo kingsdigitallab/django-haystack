@@ -8,6 +8,7 @@ from django import forms
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpRequest, QueryDict
+from django.test import override_settings
 from django.test import TestCase
 from django.utils.six.moves import queue
 from test_haystack.core.models import AnotherMockModel, MockModel
@@ -34,6 +35,8 @@ class BasicAnotherMockModelSearchIndex(indexes.BasicSearchIndex, indexes.Indexab
 
 
 class SearchViewTestCase(TestCase):
+    fixtures = ['base_data']
+
     def setUp(self):
         super(SearchViewTestCase, self).setUp()
 
@@ -137,11 +140,19 @@ class SearchViewTestCase(TestCase):
         from django.conf import settings
         old = settings.HAYSTACK_CONNECTIONS['default'].get('INCLUDE_SPELLING', None)
 
+        settings.HAYSTACK_CONNECTIONS['default']['INCLUDE_SPELLING'] = True
+
         sv = SearchView()
         sv.query = 'Nothing'
         sv.results = []
         sv.build_page = lambda: (None, None)
-        output = sv.create_response()
+        sv.create_response()
+        context = sv.get_context()
+
+        self.assertIn('suggestion', context,
+                      msg='Spelling suggestions should be present even if'
+                          ' no results were returned')
+        self.assertEqual(context['suggestion'], None)
 
         # Restore
         settings.HAYSTACK_CONNECTIONS['default']['INCLUDE_SPELLING'] = old
@@ -150,8 +161,9 @@ class SearchViewTestCase(TestCase):
             del settings.HAYSTACK_CONNECTIONS['default']['INCLUDE_SPELLING']
 
 
+@override_settings(ROOT_URLCONF='test_haystack.results_per_page_urls')
 class ResultsPerPageTestCase(TestCase):
-    urls = 'test_haystack.results_per_page_urls'
+    fixtures = ['base_data']
 
     def setUp(self):
         super(ResultsPerPageTestCase, self).setUp()
@@ -240,6 +252,8 @@ class FacetedSearchViewTestCase(TestCase):
 
 
 class BasicSearchViewTestCase(TestCase):
+    fixtures = ['base_data']
+
     def setUp(self):
         super(BasicSearchViewTestCase, self).setUp()
 
